@@ -1,0 +1,64 @@
+import os
+import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import StaleElementReferenceException
+
+# 사용자로부터 검색어와 이미지 개수를 입력받습니다.
+query = input("검색어를 입력: ")
+count = int(input("검색할 이미지 개수를 입력: "))
+directory = input("저장할 경로 제대로 넣어")
+
+# 웹 드라이버 실행
+driver = webdriver.Chrome()
+
+try:
+    url = f"https://pixabay.com/ko/photos/search/{query}/"
+    driver.get(url)
+    
+    # 이미지 로딩 대기
+    WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "img")))
+    
+    # 이미지 요소들을 찾습니다.
+    images = driver.find_elements(By.CSS_SELECTOR, "img")
+    
+    # 입력받은 개수만큼 이미지를 처리합니다.
+    for index, image in enumerate(images[:count], start=1):
+        try:
+            image = driver.find_elements(By.CSS_SELECTOR, "img")[index - 1]
+            image_url = image.get_attribute('src')
+            if not image_url:
+                continue
+            
+            # 다운로드할 폴더를 설정합니다.
+            download_folder = directory
+            if not os.path.exists(download_folder):
+                os.makedirs(download_folder)
+            
+            image_filename = os.path.join(download_folder, f"image_{index}.jpg")
+
+            response = requests.get(image_url)
+            with open(image_filename, 'wb') as f:
+                f.write(response.content)
+            
+            print(f"다운로드 완료: {image_filename}")
+        
+        except StaleElementReferenceException:
+            print(f"발생: 이미지 {index} 처리 중")
+            continue
+
+finally:
+    driver.quit()
+
+검색어를 입력:  바다
+검색할 이미지 개수를 입력:  5
+저장할 경로 제대로 넣어 C:\Users\UIT801-\Desktop\클롤링 사진
+다운로드 완료: C:\Users\UIT801-\Desktop\클롤링 사진\image_1.jpg
+다운로드 완료: C:\Users\UIT801-\Desktop\클롤링 사진\image_2.jpg
+다운로드 완료: C:\Users\UIT801-\Desktop\클롤링 사진\image_3.jpg
+다운로드 완료: C:\Users\UIT801-\Desktop\클롤링 사진\image_4.jpg
+다운로드 완료: C:\Users\UIT801-\Desktop\클롤링 사진\image_5.jpg
+
+

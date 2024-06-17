@@ -1,0 +1,74 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from bs4 import BeautifulSoup
+import requests
+import os
+import time
+
+def download_pdf(url, file_path):
+    response = requests.get(url)
+    with open(file_path, 'wb') as f:
+        f.write(response.content)
+        
+keyword = input("검색어를 입력: ")
+num = int(input("pdf파일 개수를 입력 "))
+f_dir = input("결과 파일을 저장할 폴더 경로 입력하세요 <제대로> ")
+
+# 결과 파일을 저장할 폴더 생성
+os.makedirs(f_dir, exist_ok=True)
+
+# 웹 드라이버 실행
+driver = webdriver.Chrome()
+
+try:
+    # 구글 검색 페이지로 이동
+    driver.get("https://www.google.com")
+
+    # 검색어 입력란에 검색어 입력 후 검색
+    search_box = driver.find_element(By.NAME, "q")
+    search_box.send_keys(keyword + " filetype:pdf")
+    search_box.send_keys(Keys.RETURN)
+    time.sleep(2)
+
+    count = 0
+    while count < num:
+        # 페이지 소스를 가져와 BeautifulSoup으로 파싱
+        page_source = driver.page_source
+        soup = BeautifulSoup(page_source, 'html.parser')
+
+        # 검색 결과에서 링크를 찾아 PDF 파일을 다운로드
+        links = soup.find_all('a', href=True)
+        for link in links:
+            href = link['href']
+            if href.endswith('.pdf'):
+                print(href)
+                pdf_url = href
+                try:
+                    file_name = os.path.join(f_dir, f"{count+1}.pdf")
+                    download_pdf(pdf_url, file_name)
+                    print(f"{count+1}번째 PDF 파일 다운로드 완료.")
+                    count += 1
+                    if count >= num:
+                        break
+                except Exception as e:
+                    print(f"PDF 파일 다운로드 실패: {str(e)}")
+                    continue
+
+        if count >= num:
+            break
+
+        # 다음 페이지로 이동
+        try:
+            next_button = driver.find_element(By.ID, "pnnext")
+            next_button.click()
+            time.sleep(2)
+        except Exception as e:
+            print(f"다음 페이지로 이동 실패: {str(e)}")
+            break
+
+finally:
+    # 브라우저 종료
+    driver.quit()
+
+print("PDF 파일 다운로드가 완료되었습니다.")
